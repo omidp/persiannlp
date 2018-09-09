@@ -7,9 +7,15 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import opennlp.tools.doccat.DoccatFactory;
+import opennlp.tools.doccat.DoccatModel;
+import opennlp.tools.doccat.DocumentCategorizerME;
+import opennlp.tools.doccat.DocumentSample;
+import opennlp.tools.doccat.DocumentSampleStream;
 import opennlp.tools.langdetect.Language;
 import opennlp.tools.langdetect.LanguageDetector;
 import opennlp.tools.langdetect.LanguageDetectorME;
@@ -36,19 +42,48 @@ import opennlp.tools.util.TrainingParameters;
  */
 public class App
 {
-    
+
     public static final String USER_HOME = System.getProperty("user.home");
-    
+
     public static void main(String[] args) throws IOException
     {
-//         detectLang();
-//         detectSentence();
-//         tokenization();
+        // detectLang();
+        // detectSentence();
+        // tokenization();
         // System.out.println("english name finder");
-//         nameFinder();
-//         trainNameFinder();
+        // nameFinder();
+        // trainNameFinder();
         // System.out.println("persian name finder");
-//         persianNameFinder();
+        // persianNameFinder();
+
+        // categorization
+
+//        doccattrain();
+//        doccat();
+
+    }
+
+    private static void doccat() throws IOException
+    {
+        DoccatModel m = new DoccatModel(App.class.getResourceAsStream("/fa-doccat.bin"));
+        DocumentCategorizerME myCategorizer = new DocumentCategorizerME(m);
+        double[] outcomes = myCategorizer.categorize(new String[]{"کنسول" , "PS4", "عالیه", "حرف نداره"});
+        String category = myCategorizer.getBestCategory(outcomes);
+        System.out.println(category);
+    }
+
+    private static void doccattrain() throws IOException, FileNotFoundException
+    {
+        DoccatModel model = null;
+        InputStreamFactory dataIn = new FileStreamFactory("/fa-doccat.train");
+        ObjectStream<String> lineStream = new PlainTextByLineStream(dataIn, StandardCharsets.UTF_8);
+        ObjectStream<DocumentSample> sampleStream = new DocumentSampleStream(lineStream);
+
+        model = DocumentCategorizerME.train("fa", sampleStream, TrainingParameters.defaultParams(), new DoccatFactory());
+        try (OutputStream modelOut = new BufferedOutputStream(new FileOutputStream(new File(USER_HOME+"/fa-doccat.bin"))))
+        {
+            model.serialize(modelOut);
+        }
     }
 
     private static void persianNameFinder() throws IOException, FileNotFoundException
@@ -71,8 +106,7 @@ public class App
 
     private static void trainNameFinder() throws IOException, FileNotFoundException
     {
-        ObjectStream<String> lineStream = new PlainTextByLineStream(new FileStreamFactory("/fa-ner-person.train")
-                , StandardCharsets.UTF_8);
+        ObjectStream<String> lineStream = new PlainTextByLineStream(new FileStreamFactory("/fa-ner-person.train"), StandardCharsets.UTF_8);
 
         TokenNameFinderModel model;
 
@@ -81,7 +115,7 @@ public class App
             model = NameFinderME.train("fa", "person", sampleStream, TrainingParameters.defaultParams(), new TokenNameFinderFactory());
         }
 
-        try (BufferedOutputStream modelOut = new BufferedOutputStream(new FileOutputStream(new File(USER_HOME+"/fa-ner-person.bin"))))
+        try (BufferedOutputStream modelOut = new BufferedOutputStream(new FileOutputStream(new File(USER_HOME + "/fa-ner-person.bin"))))
         {
             model.serialize(modelOut);
         }
@@ -89,10 +123,10 @@ public class App
 
     private static void nameFinder() throws IOException, FileNotFoundException
     {
-        File f = new File(USER_HOME+"/en-ner-person.bin");
-        if(f.exists() == false)
+        File f = new File(USER_HOME + "/en-ner-person.bin");
+        if (f.exists() == false)
             throw new IllegalArgumentException("en-ner-person.bin not found,  download and put it here. " + f.getAbsolutePath());
-        try (InputStream modelIn = new FileInputStream(USER_HOME+"/en-ner-person.bin"))
+        try (InputStream modelIn = new FileInputStream(USER_HOME + "/en-ner-person.bin"))
         {
             TokenNameFinderModel model = new TokenNameFinderModel(modelIn);
             NameFinderME nameFinder = new NameFinderME(model);
